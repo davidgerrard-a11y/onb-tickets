@@ -135,8 +135,7 @@
     <h1>ONB Project Tickets</h1>
 
     <div class="credentials">
-      <input id="email"  type="email"    value="david.gerrard@duettoresearch.com" />
-      <input id="token"  type="password" placeholder="Atlassian API token" />
+      <input id="token" type="password" placeholder="Atlassian API token" />
       <button id="fetchBtn" onclick="fetchTickets()">Fetch Tickets</button>
     </div>
 
@@ -166,8 +165,7 @@
     }
 
     async function fetchTickets() {
-      const email = document.getElementById('email').value.trim();
-      const token = document.getElementById('token').value.trim();
+      const token   = document.getElementById('token').value.trim();
       const errorEl = document.getElementById('error');
       const table   = document.getElementById('table');
       const btn     = document.getElementById('fetchBtn');
@@ -175,8 +173,8 @@
       errorEl.style.display = 'none';
       table.style.display   = 'none';
 
-      if (!email || !token) {
-        errorEl.textContent = 'Please enter your Atlassian email and API token.';
+      if (!token) {
+        errorEl.textContent = 'Please enter your Atlassian API token.';
         errorEl.style.display = 'block';
         return;
       }
@@ -184,21 +182,18 @@
       btn.disabled = true;
       btn.textContent = 'Fetching…';
 
-      const credentials = btoa(`${email}:${token}`);
-      const jql = encodeURIComponent('project = ONB ORDER BY updated DESC');
-      const url = `https://duettoresearch.atlassian.net/rest/api/3/search/jql?jql=${jql}&maxResults=5&fields=summary,status,assignee`;
+      const url = `/api/jira?jql=${encodeURIComponent('project = ONB ORDER BY updated DESC')}&maxResults=5&fields=summary,status,assignee`;
 
       try {
         const res = await fetch(url, {
           headers: {
-            'Authorization': `Basic ${credentials}`,
-            'Accept': 'application/json',
+            'X-Atlassian-Token': token,
           },
         });
 
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 120)}`);
+          throw new Error(`${res.status}: ${text.slice(0, 120)}`);
         }
 
         const data = await res.json();
