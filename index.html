@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ONB Tickets</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f5f7;
+      color: #172b4d;
+      padding: 40px 24px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .credentials {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .credentials input {
+      flex: 1;
+      min-width: 220px;
+      padding: 8px 12px;
+      border: 1px solid #dfe1e6;
+      border-radius: 4px;
+      font-size: 14px;
+      background: #fff;
+      outline: none;
+    }
+
+    .credentials input:focus {
+      border-color: #0052cc;
+      box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.15);
+    }
+
+    button {
+      padding: 8px 20px;
+      background: #0052cc;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #0065ff; }
+    button:disabled { background: #a5adba; cursor: not-allowed; }
+
+    .error {
+      margin: 12px 0;
+      padding: 10px 14px;
+      background: #ffebe6;
+      border-left: 3px solid #de350b;
+      border-radius: 3px;
+      font-size: 13px;
+      color: #de350b;
+      display: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-top: 20px;
+      display: none;
+    }
+
+    thead {
+      background: #f4f5f7;
+    }
+
+    th, td {
+      padding: 11px 14px;
+      text-align: left;
+      font-size: 13px;
+      border-bottom: 1px solid #ebecf0;
+    }
+
+    th {
+      font-weight: 600;
+      color: #5e6c84;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f8f9ff; }
+
+    td.key a {
+      color: #0052cc;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    td.key a:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-done     { background: #e3fcef; color: #006644; }
+    .badge-progress { background: #deebff; color: #0747a6; }
+    .badge-todo     { background: #f4f5f7; color: #42526e; }
+    .badge-review   { background: #fff0b3; color: #974f0c; }
+    .badge-default  { background: #f4f5f7; color: #42526e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ONB Project Tickets</h1>
+
+    <div class="credentials">
+      <input id="email"  type="email"    value="david.gerrard@duettoresearch.com" />
+      <input id="token"  type="password" placeholder="Atlassian API token" />
+      <button id="fetchBtn" onclick="fetchTickets()">Fetch Tickets</button>
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <table id="table">
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Summary</th>
+          <th>Status</th>
+          <th>Assignee</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    function statusClass(name) {
+      const n = (name || '').toLowerCase();
+      if (n.includes('done') || n.includes('closed') || n.includes('complete')) return 'badge-done';
+      if (n.includes('progress') || n.includes('development') || n.includes('active')) return 'badge-progress';
+      if (n.includes('review') || n.includes('qa') || n.includes('test')) return 'badge-review';
+      if (n.includes('to do') || n.includes('open') || n.includes('backlog')) return 'badge-todo';
+      return 'badge-default';
+    }
+
+    async function fetchTickets() {
+      const email = document.getElementById('email').value.trim();
+      const token = document.getElementById('token').value.trim();
+      const errorEl = document.getElementById('error');
+      const table   = document.getElementById('table');
+      const btn     = document.getElementById('fetchBtn');
+
+      errorEl.style.display = 'none';
+      table.style.display   = 'none';
+
+      if (!email || !token) {
+        errorEl.textContent = 'Please enter your Atlassian email and API token.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Fetching…';
+
+      const credentials = btoa(`${email}:${token}`);
+      const jql = encodeURIComponent('project = ONB ORDER BY updated DESC');
+      const url = `https://duettoresearch.atlassian.net/rest/api/3/search/jql?jql=${jql}&maxResults=5&fields=summary,status,assignee`;
+
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 120)}`);
+        }
+
+        const data = await res.json();
+        renderTable(data.issues || []);
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Fetch Tickets';
+      }
+    }
+
+    function renderTable(issues) {
+      const tbody = document.getElementById('tbody');
+      const table = document.getElementById('table');
+
+      tbody.innerHTML = '';
+
+      if (!issues.length) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="4" style="color:#5e6c84;text-align:center;">No tickets found.</td>';
+        tbody.appendChild(row);
+      } else {
+        issues.forEach(issue => {
+          const key      = issue.key;
+          const summary  = issue.fields.summary || '—';
+          const status   = issue.fields.status?.name || '—';
+          const assignee = issue.fields.assignee?.displayName || 'Unassigned';
+          const href     = `https://duettoresearch.atlassian.net/browse/${key}`;
+          const cls      = statusClass(status);
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="key"><a href="${href}" target="_blank">${key}</a></td>
+            <td>${escHtml(summary)}</td>
+            <td><span class="badge ${cls}">${escHtml(status)}</span></td>
+            <td>${escHtml(assignee)}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      table.style.display = 'table';
+    }
+
+    function escHtml(str) {
+      return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+  </script>
+</body>
+</html>
