@@ -14,9 +14,9 @@ export default async function handler(req, res) {
   const email = 'david.gerrard@duettoresearch.com';
   const credentials = Buffer.from(`${email}:${token}`).toString('base64');
 
-  const { jql = 'project = ONB ORDER BY updated DESC', maxResults = 5, fields = 'summary,status,assignee', expand } = req.query;
+  const { jql = 'project = ONB ORDER BY updated DESC', maxResults = 5, startAt = 0, fields = 'summary,status,assignee', expand } = req.query;
 
-  let url = `https://duettoresearch.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=${fields}`;
+  let url = `https://duettoresearch.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&startAt=${startAt}&fields=${fields}`;
   if (expand) url += `&expand=${expand}`;
 
   try {
