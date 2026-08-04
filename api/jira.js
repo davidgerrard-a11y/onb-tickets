@@ -11,22 +11,18 @@ export default async function handler(req, res) {
   const email = 'david.gerrard@duettoresearch.com';
   const credentials = Buffer.from(`${email}:${token}`).toString('base64');
 
-  const { jql = 'project = ONB ORDER BY updated DESC', maxResults = 5, startAt = 0, fields = 'summary,status,assignee' } = req.query;
+  const { jql = 'project = ONB ORDER BY updated DESC', maxResults = 50, nextPageToken, fields = 'summary,status,assignee', expand } = req.query;
+
+  let url = `https://duettoresearch.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&fields=${fields}`;
+  if (nextPageToken) url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
+  if (expand) url += `&expand=${expand}`;
 
   try {
-    const response = await fetch('https://duettoresearch.atlassian.net/rest/api/3/search', {
-      method: 'POST',
+    const response = await fetch(url, {
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        jql,
-        maxResults: Number(maxResults),
-        startAt: Number(startAt),
-        fields: fields.split(','),
-      }),
     });
 
     const data = await response.json();
